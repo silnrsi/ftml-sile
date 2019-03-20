@@ -1,3 +1,3 @@
 # ftml-sile
 
-A SILE package for typesetting FTML format data
+A SILE class for typesetting FTML format data

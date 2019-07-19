@@ -21,6 +21,10 @@ sile -e "SILE.scratch.ftmlfontlist={'Scheherazade-Regular.ttf'}" -I ftml Scheher
 In this case *-e* is used to execute Lua code to initialize the list of fonts.
 Because there is a "." in the name, it is assumed to be the name of a font file.
 
+## Samples
+
+The samples folder contains sample FTML files which can be processed with the command lines in the preceding section, assuming (for the first) that 'Andika New Basic Italic' and 'Andika New Basic Bold' fonts are installed and (for the second) that the file 'Scheherazade-Regular.ttf' (version 2.100) is present in the same folder as the FTML input. These fonts are available from https://software.sil.org/andika/download/ and https://software.sil.org/scheherazade/download/ respectively.
+
 ## Known issues
 
 The FTML *background* attribute, for both the *testgroup* and *test* elements, intended to change the background color, is not implemented.

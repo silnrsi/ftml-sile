@@ -1,0 +1,21 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<ftml version="1.0">
+  <head>
+    <columns comment="40%" label="20%" string="40%"/>
+    <description>Test of Scheherazade features</description>
+    <fontscale>200</fontscale>
+    <fontsrc> url(Scheherazade-Regular.ttf)</fontsrc>
+    <title>Scheherazade</title>
+  </head>
+
+<testgroup label='Test rendering engine choice'>
+  <test label='Check'><string>RenderingUnknown</string></test>	
+</testgroup>
+
+<testgroup label="Test emphasized feature">
+  <test label="teh" rtl="True"><string>ت تتت</string><comment></comment></test>
+  <test label="teh" rtl="True"><string>\u062A \u062A\u062A\u062A</string><comment>without em</comment></test>
+  <test label="teh" rtl="True"><string>\u062A \u062A<em>\u062A</em>\u062A</string><comment>with em</comment></test>
+</testgroup>
+
+</ftml>

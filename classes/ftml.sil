@@ -3,19 +3,32 @@
 \script[src=packages/color]
 \script[src=packages/frametricks]
 \script[src=packages/linespacing]
+\set[parameter=linespacing.method,value=fixed]
+\set[parameter=linespacing.fixed.baselinedistance,value=1.2em]
 %\showframe[id=all]
-\define[command=supereject]{\vfill\penalty[penalty=-20000]}% copied from plain.lua
+
+\define[command=supereject]{\vfill\penalty[penalty=-20000]}
+
 \define[command=ftml:title]{\begin[left=true,right=true]{ragged}
-\font[size=20pt,weight=700,family=Arial]{\process}
+\font[size=20pt,weight=700,family=Gentium Plus]{\process}
 \end{ragged}}
-\define[command=ftml:comment]{\font[style=italic]{\process}}
-\define[command=ftml:testgrouplabel]{
-\skip[height=12pt plus 4pt minus 4pt]
-\font[size=14pt,weight=700,family=Arial]{\process}
-\skip[height=12pt plus 4pt minus 4pt]
-}
-\define[command=ftml:testgroupcomment]{
+
+\define[command=ftml:comment]{\begin[left=true,right=true]{ragged}
 \font[style=italic]{\process}
-\skip[height=12pt plus 4pt minus 4pt]
+\end{ragged}}
+
+\define[command=ftml:testgrouplabel]{
+\skip[height=12pt plus 0pt minus 0pt]
+\set[parameter=linespacing.method,value=fixed]
+\set[parameter=linespacing.fixed.baselinedistance,value=1.2em]
+\font[size=12pt,weight=700,family=Gentium Plus]{\process}
+}
+
+\define[command=ftml:testgroupcomment]{
+\skip[height=2pt plus 0pt minus 0pt]
+\set[parameter=linespacing.method,value=fixed]
+\set[parameter=linespacing.fixed.baselinedistance,value=1.2em]
+\font[size=10pt,weight=400,family=Gentium Plus,style=italic]{\process}
+\skip[height=2pt plus 0pt minus 0pt]
 }
 \end{document}

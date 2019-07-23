@@ -3,6 +3,17 @@
 A SILE class for typesetting FTML format data.
 See https://github.com/silnrsi/ftml for details on FTML (Font Test Markup Language).
 
+## Installation
+
+This repository contains the files needed to implement a SILE class named "ftml". You will need [SILE](https://github.com/simoncozens/sile) to use it.
+
+The simplest way to use this class is to copy the *classes* folder from this repository to your working folder, then SILE will look in that folder for the files it needs.
+If you run all your SILE FTML files from that working folder, everything should work fine.
+
+If you want to process FTML files in different folders, then you will need to
+- Find your SILE installation folder
+- Copy the contents of the *classes* folder from this repository to the *sile/classes* folder in your SILE installation
+
 ## Usage
 
 sile -I ftml test.xml
@@ -15,6 +26,10 @@ sile -e "SILE.scratch.ftmlfontlist={'Andika New Basic Italic','Andika New Basic 
 
 In this case *-e* is used to execute Lua code to initialize the list of fonts.
 Because there is no "." in the names, they are assumed to be installed fonts.
+
+NB: When running this sample, you may get a message such as "! Error loading language vi: no support for this language".
+SILE is warning you that it doesn't have language support information (such as hyphenation rules) for Vietnamese (which is used in this example).
+The PDF output is created correctly and shows the way that multiple diacritics are displayed in Vietnamese text.
 
 sile -e "SILE.scratch.ftmlfontlist={'Scheherazade-Regular.ttf'}" -I ftml ScheherazadeSample.xml
 

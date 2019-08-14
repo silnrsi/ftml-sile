@@ -5,14 +5,22 @@ See https://github.com/silnrsi/ftml for details on FTML (Font Test Markup Langua
 
 ## Installation
 
-This repository contains the files needed to implement a SILE class named "ftml". You will need [SILE](https://github.com/simoncozens/sile) to use it.
+This repository contains the files needed to implement a SILE class named "ftml". You will need [SILE](https://github.com/simoncozens/sile) to use it. You will need at least SILE v0.9.5.
 
-The simplest way to use this class is to copy the *classes* folder from this repository to your working folder, then SILE will look in that folder for the files it needs.
+The simplest way to install this class is to install SILE and verify it's working, then run:
+
+    sile -e 'installPackage("ftmlsile");os.exit()'
+
+This will automatically grab the latest ftml-sile files and install them.
+
+You can instead install the class manually. Copy the *classes* folder from this repository to your working folder, then SILE will look in that folder for the files it needs.
 If you run all your SILE FTML files from that working folder, everything should work fine.
 
 If you want to process FTML files in different folders, then you will need to
 - Find your SILE installation folder
 - Copy the contents of the *classes* folder from this repository to the *sile/classes* folder in your SILE installation
+
+These latter steps are unnecessary if you use the installPackage command.
 
 ## Usage
 

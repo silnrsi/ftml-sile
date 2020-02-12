@@ -30,9 +30,9 @@ ftml:declareFrame("content", {
 ftml.pageTemplate.firstContentFrame = ftml.pageTemplate.frames["content"]
 
 function ftml:init()
-  SILE.settings.set("document.parindent",SILE.nodefactory.zeroGlue)
-  SILE.settings.set("document.baselineskip",SILE.nodefactory.newVglue("1.2em"))
-  SILE.settings.set("document.parskip",SILE.nodefactory.newVglue("0pt"))
+  SILE.settings.set("document.parindent",SILE.nodefactory.glue())
+  SILE.settings.set("document.baselineskip",SILE.nodefactory.vglue("1.2em"))
+  SILE.settings.set("document.parskip",SILE.nodefactory.vglue("0pt"))
   SILE.settings.set("document.spaceskip")
   return SILE.baseClass:init()
 end
@@ -40,7 +40,7 @@ end
 -- copied from plain class
 SILE.registerCommand("vfill", function (options, content)
   SILE.typesetter:leaveHmode()
-  SILE.typesetter:pushExplicitVglue(SILE.nodefactory.vfillGlue)
+  SILE.typesetter:pushExplicitVglue(SILE.nodefactory.vfillglue())
 end, "Add huge vertical glue")
 
 SILE.registerCommand("hbox", function (options, content)
@@ -48,18 +48,21 @@ SU.debug("ftml", "entering hbox")
 SU.debug("ftml", "options:")
 SU.debug("ftml", options)
 SU.debug("ftml", "content:")
-SU.debug("ftml", content)
+-- SU.debug("ftml", content)
   local index = #(SILE.typesetter.state.nodes)+1
   local recentContribution = {}
   SILE.process(content)
-  local l = SILE.length.new()
+  local l = SILE.length()
   local h,d = 0,0
+  local dir = SILE.typesetter.frame.direction
+  SU.debug("ftml", "hbox direction: " .. dir .. " font direction: " .. SILE.settings.get("font.direction"))
   for i = index, #(SILE.typesetter.state.nodes) do
     local node = SILE.typesetter.state.nodes[i]
-    if node:isUnshaped() then
+    if node.is_unshaped then
       local s = node:shape()
       for i = 1, #s do
         recentContribution[#recentContribution+1] = s[i]
+SU.debug("ftml", "node contribution: " .. s[i])
         h = s[i].height > h and s[i].height or h
         d = s[i].depth > d and s[i].depth or d
         l = l + s[i]:lineContribution()
@@ -75,40 +78,43 @@ SU.debug("ftml", "h = " .. tostring(h) )
     end
     SILE.typesetter.state.nodes[i] = nil
   end
-  local hbox = SILE.nodefactory.newHbox({
+  local hbox = SILE.nodefactory.hbox({
     height = h,
     width = l,
     depth = d,
+    direction = dir,
     value = recentContribution,
     outputYourself = function (self, typesetter, line)
       -- Yuck!
-      if typesetter.frame:writingDirection() == "RTL" then
-        typesetter.frame:advanceWritingDirection(self:scaledWidth(line))
+      olddir = typesetter.frame.direction
+      if self.direction == "RTL" then
+        typesetter.frame:advanceWritingDirection(self.width)
       end
       local X = typesetter.frame.state.cursorX
       SILE.outputter.moveTo(typesetter.frame.state.cursorX, typesetter.frame.state.cursorY)
       for i = 1, #(self.value) do local node = self.value[i]
         node:outputYourself(typesetter, line)
       end
+      typesetter.frame.direction = olddir
       typesetter.frame.state.cursorX = X
-      if typesetter.frame:writingDirection() ~= "RTL" then
-        typesetter.frame:advanceWritingDirection(self:scaledWidth(line))
+      if self.direction ~= "RTL" then
+        typesetter.frame:advanceWritingDirection(self.width)
       end
       if SU.debugging("hboxes") then SILE.outputter.debugHbox(self, self:scaledWidth(line)) end
     end
   })
-  table.insert(SILE.typesetter.state.nodes, hbox)
+  -- table.insert(SILE.typesetter.state.nodes, hbox)
   return hbox
 end, "Compiles all the enclosed horizontal-mode material into a single hbox")
 
 SILE.registerCommand("ragged", function (options, content)
   SILE.settings.temporarily(function ()
-    if options.left then SILE.settings.set("document.lskip", SILE.nodefactory.hfillGlue) end
-    if options.right then SILE.settings.set("document.rskip", SILE.nodefactory.hfillGlue) end
-    SILE.settings.set("typesetter.parfillskip", SILE.nodefactory.zeroGlue)
-    SILE.settings.set("document.parindent", SILE.nodefactory.zeroGlue)
-    SILE.settings.set("document.baselineskip",SILE.nodefactory.newVglue("1.2em"))
-    local space = SILE.length.parse("1spc")
+    if options.left then SILE.settings.set("document.lskip", SILE.nodefactory.hfillglue()) end
+    if options.right then SILE.settings.set("document.rskip", SILE.nodefactory.hfillglue()) end
+    SILE.settings.set("typesetter.parfillskip", SILE.nodefactory.glue())
+    SILE.settings.set("document.parindent", SILE.nodefactory.glue())
+    SILE.settings.set("document.baselineskip",SILE.nodefactory.vglue("1.2em"))
+    local space = SILE.length("1spc")
     space.stretch = 0
     space.shrink = 0
     SILE.settings.set("document.spaceskip", space)
@@ -200,11 +206,11 @@ SU.debug("ftml", "head1")
   local head_comment = SILE.findInTree(content, "comment")
   if head_comment then SILE.scratch.ftml.head.comment = head_comment[1] end
   local head_fontscale = SILE.findInTree(content, "fontscale")
-  if head_fontscale then 
-    SILE.scratch.ftml.head.fontscale = head_fontscale[1]
-  else
-    SILE.scratch.ftml.head.fontscale = "100"
-  end
+  -- if head_fontscale then 
+  --   SILE.scratch.ftml.head.fontscale = head_fontscale[1]
+  -- else
+    SILE.scratch.ftml.head.fontscale = "150"
+  -- end
   SILE.scratch.ftml.fontsize = math.floor(12*tonumber(SILE.scratch.ftml.head.fontscale)/50)/2.0
 SU.debug("ftml", "head2")
   local head_fontsrc = SILE.findInTree(content, "fontsrc")
@@ -289,16 +295,16 @@ At this point
   local commentwidth = tonumber(string.match(commentwidthstr, "%d+"))
   local gutterwidth = 1
 
-  local gutters = SILE.scratch.ftml.numfonts - 1
+  gutters = SILE.scratch.ftml.numfonts - 1
   if labelwidth > 0 then gutters = gutters + 1 end
   if stylenamewidth > 0 then gutters = gutters + 1 end
   if commentwidth > 0 then gutters = gutters + 1 end
-  local totalwidth = gutters + labelwidth + (stringwidth * SILE.scratch.ftml.numfonts) + stylenamewidth + commentwidth
+  totalwidth = gutters + labelwidth + (stringwidth * SILE.scratch.ftml.numfonts) + stylenamewidth + commentwidth
 
   tablewidthstr = SILE.scratch.ftml.head.widths.table or "100%"
   tablewidth = tonumber(string.match(tablewidthstr, "%d+"))
   if tablewidth > 100 or tablewidth < 10 then tablewidth = 100 end
-  tablewidth = SILE.toPoints(tostring(tablewidth) .. "%fw")
+  tablewidth = SILE.measurement(tostring(tablewidth) .. "%fw"):tonumber()
 
   labelwidth = math.floor(tablewidth*labelwidth/totalwidth)
   stringwidth = math.floor(tablewidth*stringwidth/totalwidth)
@@ -467,6 +473,7 @@ SILE.registerCommand("string", function (options, content)
   end
 --]]
   for c = 1,#colinfo do
+    SU.debug("ftml", "Looping string " .. c)
     SILE.call("rebox", {width = colinfo[c].width }, function ()
       -- reset all columns to defaults
       SILE.settings.set("font.family", "Gentium Plus")
@@ -477,11 +484,12 @@ SILE.registerCommand("string", function (options, content)
       SILE.settings.set("font.direction", "LTR")
       SILE.settings.set("font.features", "")
       SILE.settings.set("document.language", "en")
-      SILE.settings.set("document.parindent", SILE.nodefactory.zeroGlue)
+      SILE.settings.set("document.parindent", SILE.nodefactory.glue())
       local colname = colinfo[c].name -- label, stringX, stylename, comment
+      SU.debug("ftml", "colname: "..colname .. " width: " ..colinfo[c].width)
       if not string.find(colname, "string") then -- if colname doesn't contain "string"
         SILE.settings.set("linespacing.method", "fixed")
-        SILE.settings.set("linespacing.fixed.baselinedistance", SILE.length.new({length=8, stretch=0, shrink=0}))
+        SILE.settings.set("linespacing.fixed.baselinedistance", SILE.length({length=8, stretch=0, shrink=0}))
         local outputtext = SILE.scratch.ftml.testgroup[#(SILE.scratch.ftml.testgroup)][colname]
         if not outputtext then outputtext = SU.utf8char(160) end -- U+00A0 to hold place, otherwise Vglue disappears and spacing is off
         -- or try using SILE.typesetter:pushExplicitVglue
@@ -507,11 +515,14 @@ SILE.registerCommand("string", function (options, content)
         end
         SILE.settings.set("font.size", SILE.scratch.ftml.fontsize)
         SILE.settings.set("linespacing.method", "fixed")
---        SILE.settings.set("linespacing.fixed.baselinedistance", SILE.length.new({length=1.5*SILE.scratch.ftml.fontsize, stretch=0, shrink=0}))
---        SILE.settings.set("linespacing.fixed.baselinedistance", SILE.length.new({length=8, stretch=0, shrink=0}))
-        SILE.settings.set("linespacing.fixed.baselinedistance", SILE.length.new({length=0.5*SILE.scratch.ftml.fontsize, stretch=0, shrink=0}))
-        SILE.settings.set("font.direction", SILE.scratch.ftml.testgroup[#(SILE.scratch.ftml.testgroup)].rtl)
+--        SILE.settings.set("linespacing.fixed.baselinedistance", SILE.length({length=1.5*SILE.scratch.ftml.fontsize, stretch=0, shrink=0}))
+--        SILE.settings.set("linespacing.fixed.baselinedistance", SILE.length({length=8, stretch=0, shrink=0}))
+        SILE.settings.set("linespacing.fixed.baselinedistance", SILE.length({length=0.5*SILE.scratch.ftml.fontsize, stretch=0, shrink=0}))
+        -- isrtl = SILE.scratch.ftml.testgroup[#(SILE.scratch.ftml.testgroup)].rtl
+        -- SILE.settings.set("font.direction", isrtl)
+        -- SILE.typesetter.frame.direction = isrtl
         SU.debug("ftml", SILE.scratch.ftml.stylename)
+        SU.debug("ftml", SILE.settings.get("font.direction"))
         if SILE.scratch.ftml.stylename and SILE.scratch.ftml.stylename ~= "" then
           SILE.settings.set("font.features", SILE.scratch.ftml.head.styles[SILE.scratch.ftml.stylename].feats)
           SILE.settings.set("document.language", SILE.scratch.ftml.head.styles[SILE.scratch.ftml.stylename].lang)
@@ -536,7 +547,7 @@ SILE.registerCommand("string", function (options, content)
           SILE.typesetter:typeset(expandslashu(content[1]))
         end
       end
-      SU.debug("ftml", "just printed " .. colname)
+      SU.debug("ftml", "just printed " .. colname .. " column: " .. c)
     end)
   end
   SILE.typesetter:leaveHmode()
@@ -548,7 +559,7 @@ SILE.registerCommand("string", function (options, content)
     end
   end
   SILE.typesetter:leaveHmode()
-  SILE.typesetter:pushExplicitVglue({height=SILE.length.new({ height = 20, stretch = 0, shrink = 0}) })
+  SILE.typesetter:pushExplicitVglue({height=SILE.length({ height = 20, stretch = 0, shrink = 0}) })
   SILE.typesetter:typeset(SU.utf8char(160))
   SILE.typesetter:leaveHmode()
   SU.debug("ftml", "exiting string")

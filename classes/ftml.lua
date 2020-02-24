@@ -338,17 +338,21 @@ SU.debug("ftml", "head1")
   for j=1,#(_G.arg) do
     if _G.arg[j] == "-r" then
       SILE.scratch.ftml.rtl = true
+    elseif _G.arg[j] == "-s" then
+      SILE.scratch.ftml.scale = _G.arg[j+1]
+      j = j + 1
     end
   end
   print ("Command line direction rtl: ".. SILE.scratch.ftml.rtl)
   local head_comment = SILE.findInTree(content, "comment")
   if head_comment then SILE.scratch.ftml.head.comment = head_comment[1] end
   local head_fontscale = SILE.findInTree(content, "fontscale")
-  -- if head_fontscale then 
-  --   SILE.scratch.ftml.head.fontscale = head_fontscale[1]
-  -- else
+  if head_fontscale then 
+    SILE.scratch.ftml.head.fontscale = head_fontscale[1]
+  else
     SILE.scratch.ftml.head.fontscale = "150"
-  -- end
+  end
+  if SILE.scratch.ftml.scale then SILE.scratch.ftml.head.fontscale = SILE.scratch.ftml.scale end
   SILE.scratch.ftml.fontsize = math.floor(12*tonumber(SILE.scratch.ftml.head.fontscale)/50)/2.0
 SU.debug("ftml", "head2")
   local head_fontsrc = SILE.findInTree(content, "fontsrc")

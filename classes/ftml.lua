@@ -9,6 +9,7 @@ SILE.require("packages/bidi")
 SILE.require("packages/rules")
 SILE.require("packages/color")
 SILE.require("packages/rebox")
+local icu = require("justenoughicu")
 
 -- SILE's -e command line option can be used to specify the font(s) to test:
 -- -e "SILE.scratch.ftmlfontlist={'Andika New Basic Italic','Andika New Basic Bold'}"
@@ -20,6 +21,19 @@ SU.debug("ftml", "font list loaded into SILE.scratch.ftmlfontlist: " .. SILE.scr
 
 SILE.scratch.ftml = {}
 SILE.scratch.ftml = { head = {}, fontlist = {}, testgroup = {} }
+
+function dump(o, i)
+   if type(o) == 'table' then
+      local s = '\n'.. i .. '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s ..k..': ' .. dump(v, '  '..i) .. ','
+      end
+      return s .. '}'
+   else
+      return tostring(o)
+   end
+end
 
 ftml:declareFrame("content", {
     left = "5%pw",
@@ -43,6 +57,105 @@ SILE.registerCommand("vfill", function (options, content)
   SILE.typesetter:pushExplicitVglue(SILE.nodefactory.vfillglue())
 end, "Add huge vertical glue")
 
+local reverse_each_node = function (nodelist)
+  for j = 1, #nodelist do
+    if nodelist[j].type =="hbox" then
+      if nodelist[j].value.items then SU.flip_in_place(nodelist[j].value.items) end
+      SU.flip_in_place(nodelist[j].value.glyphString)
+    end
+  end
+end
+
+local nodeListToText = function (nl)
+  local owners, text = {}, {}
+  local p = 1
+  for i = 1, #nl do local n = nl[i]
+    if n.text then
+      local utfchars = SU.splitUtf8(n.text)
+      for j = 1, #utfchars do
+        owners[p] = { node = n, pos = j }
+        text[p] = utfchars[j]
+        p = p + 1
+      end
+    else
+      owners[p] = { node = n }
+      text[p] = SU.utf8char(0xFFFC)
+      p = p + 1
+    end
+  end
+  return owners, text
+end
+
+local splitNodeAtPos = function (n, splitstart, p)
+  if n.is_unshaped then
+    local utf8chars = SU.splitUtf8(n.text)
+    local n2 = SILE.nodefactory.unshaped({ text = "", options = pl.tablex.copy(n.options) })
+    local n1 = SILE.nodefactory.unshaped({ text = "", options = pl.tablex.copy(n.options) })
+    for i = splitstart, #utf8chars do
+      if i <= p then n1.text = n1.text .. utf8chars[i]
+      else n2.text = n2.text .. utf8chars[i]
+      end
+    end
+    return n1, n2
+  else
+    SU.error("Unsure how to split node "..n.." at position "..p, true)
+  end
+end
+
+local splitNodelistIntoBidiRuns = function (self)
+  local nl = self.state.nodes
+  if #nl == 0 then return nl end
+  local owners, text = nodeListToText(nl)
+  local base_level = self.frame:writingDirection() == "RTL" and 1 or 0
+  local runs = { icu.bidi_runs(table.concat(text), self.frame:writingDirection()) }
+  table.sort(runs, function (a, b) return a.start < b.start end)
+  -- local newNl = {}
+  -- Split nodes on run boundaries
+  for i = 1, #runs do
+    local run = runs[i]
+    local thisOwner = owners[run.start+run.length]
+    local nextOwner = owners[run.start+1+run.length]
+    -- print(thisOwner, nextOwner)
+    if nextOwner and thisOwner.node == nextOwner.node then
+      local before, after = splitNodeAtPos(nextOwner.node, 1, nextOwner.pos-1)
+      -- print(before, after)
+      local start = nil
+      for j = run.start+1, run.start+run.length do
+        if owners[j].node==nextOwner.node then
+          if not start then start = j end
+          owners[j]={ node=before ,pos=j-start+1 }
+        end
+      end
+      for j = run.start + 1 + run.length, #owners do
+        if owners[j].node==nextOwner.node then
+          owners[j] = { node = after, pos = j - (run.start + run.length) }
+        end
+      end
+    end
+  end
+  -- Assign direction/level to nodes
+  for i = 1, #runs do
+    local runstart = runs[i].start+1
+    local runend   = runstart + runs[i].length-1
+    for j= runstart, runend do
+      if owners[j].node and owners[j].node.options then
+        owners[j].node.options.direction = runs[i].dir
+        owners[j].node.options.bidilevel = runs[i].level - base_level
+      end
+    end
+  end
+  -- String together nodelist
+  nl={}
+  for i = 1, #owners do
+    if #nl and nl[#nl] ~= owners[i].node then
+      nl[#nl+1] = owners[i].node
+      -- print(nl[#nl], nl[#nl].options)
+    end
+  end
+  -- for i = 1, #nl do print(i, nl[i]) end
+  return nl
+end
+
 SILE.registerCommand("hbox", function (options, content)
 SU.debug("ftml", "entering hbox")
 SU.debug("ftml", "options:")
@@ -54,15 +167,30 @@ SU.debug("ftml", "content:")
   SILE.process(content)
   local l = SILE.length()
   local h,d = 0,0
-  local dir = SILE.typesetter.frame.direction
-  SU.debug("ftml", "hbox direction: " .. dir .. " font direction: " .. SILE.settings.get("font.direction"))
+  local dir = SILE.scratch.ftml.rtl and "RTL" or "LTR" -- SILE.typesetter.frame.direction
+  SU.debug("ftml", "hbox direction: " .. dir .. " font direction: " .. SILE.settings.get("font.direction") .. " ftml rtl: " .. SILE.scratch.ftml.rtl)
+  -- if SILE.scratch.ftml.rtl then
+    newnodes = splitNodelistIntoBidiRuns(SILE.typesetter)
+    SILE.typesetter.state.nodes = newnodes
+  -- end
   for i = index, #(SILE.typesetter.state.nodes) do
     local node = SILE.typesetter.state.nodes[i]
     if node.is_unshaped then
+SU.debug("ftml", "node options "..node.options)
       local s = node:shape()
       for i = 1, #s do
+        n = s[i].nodes
+        if n then
+          for j = 1, #n do
+            SU.debug("ftml", "subnode options "..n[j].value.options)
+            if n[j].value and n[j].value.options and n[j].value.options.direction == "RTL" then
+              if n[j].value.items then SU.flip_in_place(n[j].value.items) end
+              SU.flip_in_place(n[j].value.glyphString)
+            end
+          end
+        end
         recentContribution[#recentContribution+1] = s[i]
-SU.debug("ftml", "node contribution: " .. s[i])
+SU.debug("ftml", "node contribution: " .. dump(s[i], ''))
         h = s[i].height > h and s[i].height or h
         d = s[i].depth > d and s[i].depth or d
         l = l + s[i]:lineContribution()
@@ -78,27 +206,30 @@ SU.debug("ftml", "h = " .. tostring(h) )
     end
     SILE.typesetter.state.nodes[i] = nil
   end
+SU.debug("ftml", "width: " .. l)
   local hbox = SILE.nodefactory.hbox({
     height = h,
-    width = l,
+    width = l,      -- this gets overriddent to give fixed width box
+    textwidth = l,  -- actual text width for right alignment shifting
     depth = d,
     direction = dir,
     value = recentContribution,
     outputYourself = function (self, typesetter, line)
       -- Yuck!
-      olddir = typesetter.frame.direction
       if self.direction == "RTL" then
-        typesetter.frame:advanceWritingDirection(self.width)
+       SU.debug("ftml", "Advance by: "..self.width - self.textwidth)
+       typesetter.frame:advanceWritingDirection(self.width - self.textwidth)
       end
       local X = typesetter.frame.state.cursorX
       SILE.outputter.moveTo(typesetter.frame.state.cursorX, typesetter.frame.state.cursorY)
       for i = 1, #(self.value) do local node = self.value[i]
         node:outputYourself(typesetter, line)
       end
-      typesetter.frame.direction = olddir
       typesetter.frame.state.cursorX = X
       if self.direction ~= "RTL" then
         typesetter.frame:advanceWritingDirection(self.width)
+      else
+        typesetter.frame:advanceWritingDirection(self.textwidth)
       end
       if SU.debugging("hboxes") then SILE.outputter.debugHbox(self, self:scaledWidth(line)) end
     end
@@ -203,6 +334,13 @@ end)
 
 SILE.registerCommand("head", function (options, content)
 SU.debug("ftml", "head1")
+  SILE.scratch.ftml.rtl = false
+  for j=1,#(_G.arg) do
+    if _G.arg[j] == "-r" then
+      SILE.scratch.ftml.rtl = true
+    end
+  end
+  print ("Command line direction rtl: ".. SILE.scratch.ftml.rtl)
   local head_comment = SILE.findInTree(content, "comment")
   if head_comment then SILE.scratch.ftml.head.comment = head_comment[1] end
   local head_fontscale = SILE.findInTree(content, "fontscale")

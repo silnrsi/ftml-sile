@@ -1,11 +1,11 @@
 ﻿<?xml version='1.0' encoding='UTF-8'?>
 <ftml version="1.0">
   <head>
-    <columns comment="40%" label="20%" string="40%"/>
-    <description>Test of Scheherazade features</description>
+    <comment>Test of Scheherazade features</comment>
     <fontscale>200</fontscale>
-    <fontsrc> url(Scheherazade-Regular.ttf)</fontsrc>
+    <fontsrc>local(Scheherazade)</fontsrc>
     <title>Scheherazade</title>
+    <widths comment="40%" label="20%" string="40%"/>
   </head>
 
 <testgroup label='Test rendering engine choice'>

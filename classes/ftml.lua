@@ -343,7 +343,7 @@ SU.debug("ftml", "head1")
       j = j + 1
     end
   end
-  print ("Command line direction rtl: ".. SILE.scratch.ftml.rtl)
+  -- print ("Command line direction rtl: ".. SILE.scratch.ftml.rtl)
   local head_comment = SILE.findInTree(content, "comment")
   if head_comment then SILE.scratch.ftml.head.comment = head_comment[1] end
   local head_fontscale = SILE.findInTree(content, "fontscale")
@@ -369,7 +369,7 @@ SU.debug("ftml", "head4")
   local head_widths = SILE.findInTree(content, "widths")
   SILE.scratch.ftml.head.widths = {}
   if head_widths then -- perhaps else clause to set defaults if no widths element?
-    for k,v in pairs(head_widths["attr"]) do
+    for k,v in pairs(head_widths["options"]) do
       if type(k) ~= "number" then
         SILE.scratch.ftml.head.widths[k] = v
       end

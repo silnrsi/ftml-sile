@@ -108,11 +108,18 @@ local splitNodelistIntoBidiRuns = function (self)
   local owners, text = nodeListToText(nl)
   local base_level = self.frame:writingDirection() == "RTL" and 1 or 0
   local runs = { icu.bidi_runs(table.concat(text), self.frame:writingDirection()) }
+  if #owners ~= runs.length then
+    SU.debug("ftml", "Runs: " .. runs .. ". Owners: " .. owners)
+  end
   table.sort(runs, function (a, b) return a.start < b.start end)
   -- local newNl = {}
   -- Split nodes on run boundaries
   for i = 1, #runs do
     local run = runs[i]
+    if run.run then -- Work around sile issue #839
+        local t = SU.splitUtf8(run.run)
+        run.length = #t
+    end
     local thisOwner = owners[run.start+run.length]
     local nextOwner = owners[run.start+1+run.length]
     -- print(thisOwner, nextOwner)
@@ -137,7 +144,10 @@ local splitNodelistIntoBidiRuns = function (self)
   for i = 1, #runs do
     local runstart = runs[i].start+1
     local runend   = runstart + runs[i].length-1
-    for j= runstart, runend do
+    for j = runstart, runend do
+      if not owners[j] then
+        SU.debug("ftml", "i = " .. i .. ", j = " .. j .. " Run: " .. runs .. ". Owners: " .. owners)
+      end
       if owners[j].node and owners[j].node.options then
         owners[j].node.options.direction = runs[i].dir
         owners[j].node.options.bidilevel = runs[i].level - base_level
